@@ -2,7 +2,7 @@ title           = NPT equilibration
 define          = -DPOSRES_WEAK      ; position restrain the protein
 ; Run parameters
 integrator      = md            ; leap-frog integrator
-nsteps          = 1500000       ; 2 * 1500000 = 3000000 fs = 3 ns
+nsteps          = 1500000       ; 2 * 500000 = 3000000 fs = 1 ns
 dt              = 0.002         ; 2 fs
 ; Output control
 nstxout         = 10000         ; save coordinates every 0.2 ps
