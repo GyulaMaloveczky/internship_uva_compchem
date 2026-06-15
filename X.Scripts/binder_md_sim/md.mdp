@@ -10,7 +10,7 @@ nstvout                 = 1250000               ; save velocities every 2500 ps
 nstenergy               = 12500                 ; save energies every 25 ps
 nstlog                  = 12500                 ; update log file every 25 ps
 ; Bond parameters
-continuation            = yes                    ; first dynamics run
+continuation            = yes                 
 constraint_algorithm    = lincs                 ; holonomic constraints
 constraints             = h-bonds   	        ; all bonds (even heavy atom-H bonds) constrained
 lincs_iter              = 2                     ; accuracy of LINCS
@@ -22,7 +22,7 @@ ns_type                 = grid                  ; search neighboring grid cells
 nstlist                 = 5                     ; 10 fs
 rlist                   = 1.2                   ; short-range neighborlist cutoff (in nm)
 vdw-type                = Cut-off
-vdw-modifier            = None
+vdw-modifier            = Potential-shift
 rvdw                    = 1.2                   ; short-range van der Waals cutoff (in nm)
 rvdw-switch             = 0
 rlistlong               = -1
