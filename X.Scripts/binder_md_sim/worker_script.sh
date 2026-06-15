@@ -22,12 +22,14 @@ FORM_BOX=$(get_json_value "form_box" "$JSON_FILE")
 
 
 ### Create necessary directories ###
-mkdir -p 1.topology  2.solvation 3.ions 4.minimization 5.equilibriation_first 5.equilibriation_second 6.md_sim 7.analysis
+mkdir -p 1.topology 2.solvation 3.ions 4.minimization 4.5.nvt \
+         5.equilibriation_first 5.equilibriation_second 6.md_sim 7.analysiss
 
 
 ### Copy running scripts into correct folders ###
 cp ../../../../../X.Scripts/binder_md_sim/ions.mdp 3.ions/
 cp ../../../../../X.Scripts/binder_md_sim/minim.mdp 4.minimization/
+cp ../../../../../X.Scripts/binder_md_sim/nvt.mdp 4.5.nvt/
 cp ../../../../../X.Scripts/binder_md_sim/npt_first.mdp 5.equilibriation_first/
 cp ../../../../../X.Scripts/binder_md_sim/npt_second.mdp 5.equilibriation_second/
 cp ../../../../../X.Scripts/binder_md_sim/md.mdp 6.md_sim/
@@ -183,21 +185,25 @@ cd ../4.minimization
 gmx_mpi grompp -f minim.mdp -c ../3.ions/complex_solv_ions.gro -p ../1.topology/topol.top -o em.tpr
 gmx_mpi mdrun -deffnm em
 
+### NVT thermalization (NEW) ###
+cd ../4.5.nvt
+gmx_mpi grompp -f nvt.mdp -c ../4.minimization/em.gro -r ../4.minimization/em.gro -p ../1.topology/topol.top -o nvt.tpr
+gmx_mpi mdrun -deffnm nvt
 
 ### equilibration two steps###
 cd ../5.equilibriation_first
 
-gmx_mpi grompp -f npt_first.mdp -c ../4.minimization/em.gro -r ../4.minimization/em.gro -p ../1.topology/topol.top -o npt_first.tpr -maxwarn 1
+gmx_mpi grompp -f npt_first.mdp -c ../4.5.nvt/nvt.gro -r ../4.minimization/em.gro -t ../4.5.nvt/nvt.cpt -p ../1.topology/topol.top -o npt_first.tpr -maxwarn 1
 gmx_mpi mdrun -deffnm npt_first
 
 cd ../5.equilibriation_second
 
-gmx_mpi grompp -f npt_second.mdp -c ../5.equilibriation_first/npt_first.gro -r ../5.equilibriation_first/npt_first.gro -t ../5.equilibriation_first/npt_first.cpt -p ../1.topology/topol.top -o npt.tpr -maxwarn 1
+gmx_mpi grompp -f npt_second.mdp -c ../5.equilibriation_first/npt_first.gro -r .../4.minimization/em.gro -t ../5.equilibriation_first/npt_first.cpt -p ../1.topology/topol.top -o npt.tpr -maxwarn 1
 gmx_mpi mdrun -deffnm npt
 
 
 ### md-sim ###
 cd ../6.md_sim
 
-gmx_mpi grompp -f md.mdp -c ../5.equilibriation_second/npt.gro -p ../1.topology/topol.top -o md_0_1.tpr
+gmx_mpi grompp -f md.mdp -c ../5.equilibriation_second/npt.gro  -t ../5.equilibriation_second/npt.cpt  -p ../1.topology/topol.top -o md_0_1.tpr
 gmx_mpi mdrun -deffnm md_0_1 -nb gpu >& ./md.out
