@@ -60,7 +60,7 @@ cd ./1.topology
 
 
 echo "8 7 0 0" | gmx_mpi pdb2gmx -f ../complex_noH.pdb -o ./complex.gro \
-  -water ${WATER_MODEL} -ff ${FORCE_FIELD} -missing -ter
+  -water ${WATER_MODEL} -ff ${FORCE_FIELD} -ter
 
 
 # peptide
@@ -69,7 +69,7 @@ cd ./peptide_only
 
 
 echo "0 0" | gmx_mpi pdb2gmx -f ../../onlyPeptide.pdb -o ./only_peptide.gro \
-  -water ${WATER_MODEL} -ff ${FORCE_FIELD} -missing -ter
+  -water ${WATER_MODEL} -ff ${FORCE_FIELD} -ter
 
 cd ../
 
