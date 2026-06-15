@@ -1,5 +1,8 @@
 #!/bin/bash
 #==========================#WORKER SCRIPT#==========================#
+# --- Suppress PSM2 / Omni-Path fabric probing (single-node, no InfiniBand) ---
+export FI_PROVIDER=sockets
+export PSM2_HAL=loopback
 
 # Function to extract value from JSON
 get_json_value() {
@@ -50,54 +53,14 @@ awk '/^ATOM/ || /^HETATM/ { if(substr($0,22,1)=="A") print $0 }' complex_noH.pdb
 
 
 # Topology
- 
-# deal with MET at start or end 
-detect_met_positions() {
-    local pdbfile="$1"
-
-    # Initialize globals
-    declare -g MET_output
-    declare -g chains_list
-    MET_output=()
-    chains_list=()
-
-    # Extract all unique chains in order of appearance
-    mapfile -t chains_list < <(awk 'substr($0,22,1)!=" " && !seen[substr($0,22,1)]++ {print substr($0,22,1)}' "$pdbfile")
-
-    # Initialize MET_output with 0 for each start/end position
-    for ((i=0; i<${#chains_list[@]}*2; i++)); do
-        MET_output[i]=0
-    done
-
-    local code=0
-
-    # Loop over each chain
-    for chain in "${chains_list[@]}"; do
-        # Get first residue number
-        first_res=$(awk -v c="$chain" 'substr($0,22,1)==c {print substr($0,23,4)+0; exit}' "$pdbfile")
-        # Get last residue number
-        last_res=$(awk -v c="$chain" 'substr($0,22,1)==c {res=substr($0,23,4)+0} END{print res}' "$pdbfile")
-
-        # Get residue names at first and last residue
-        start_resname=$(awk -v c="$chain" -v r="$first_res" 'substr($0,22,1)==c && (substr($0,23,4)+0)==r {resname=substr($0,18,3); gsub(/ /,"",resname); print resname; exit}' "$pdbfile")
-        end_resname=$(awk -v c="$chain" -v r="$last_res" 'substr($0,22,1)==c && (substr($0,23,4)+0)==r {resname=substr($0,18,3); gsub(/ /,"",resname); print resname; exit}' "$pdbfile")
-
-        # Update MET_output array
-        [ "$start_resname" == "MET" ] && MET_output[code]=1
-        ((code++))
-        [ "$end_resname" == "MET" ] && MET_output[code]=1
-        ((code++))
-    done
-}
 
 cd ./1.topology
 
 # complex
 
-detect_met_positions "../complex_noH.pdb"
 
-echo "${MET_output[@]}"
-echo "${MET_output[@]}" | gmx_mpi pdb2gmx -f ../complex_noH.pdb -o ./complex.gro -water ${WATER_MODEL} -ff ${FORCE_FIELD} -missing -ter 
+echo "8 7 0 0" | gmx_mpi pdb2gmx -f ../complex_noH.pdb -o ./complex.gro \
+  -water ${WATER_MODEL} -ff ${FORCE_FIELD} -missing -ter
 
 
 # peptide
@@ -105,12 +68,8 @@ mkdir ./peptide_only
 cd ./peptide_only
 
 
-
-detect_met_positions "../../onlyPeptide.pdb"
-
-
-echo "${MET_output[@]}"
-echo "${MET_output[@]}" | gmx_mpi pdb2gmx -f ../../onlyPeptide.pdb -o ./only_peptide.gro -water ${WATER_MODEL} -ff ${FORCE_FIELD} -missing -ter
+echo "0 0" | gmx_mpi pdb2gmx -f ../../onlyPeptide.pdb -o ./only_peptide.gro \
+  -water ${WATER_MODEL} -ff ${FORCE_FIELD} -missing -ter
 
 cd ../
 
@@ -183,12 +142,12 @@ echo 13 | gmx_mpi genion -s ions.tpr -o complex_solv_ions.gro -p ../1.topology/t
 cd ../4.minimization
 
 gmx_mpi grompp -f minim.mdp -c ../3.ions/complex_solv_ions.gro -p ../1.topology/topol.top -o em.tpr
-gmx_mpi mdrun -deffnm em
+gmx_mpi mdrun -deffnm em -ntomp $OMP_NUM_THREADS
 
 ### NVT thermalization (NEW) ###
 cd ../4.5.nvt
 gmx_mpi grompp -f nvt.mdp -c ../4.minimization/em.gro -r ../4.minimization/em.gro -p ../1.topology/topol.top -o nvt.tpr
-gmx_mpi mdrun -deffnm nvt
+gmx_mpi mdrun -deffnm nvt -ntomp $OMP_NUM_THREADS
 
 ### equilibration two steps###
 cd ../5.equilibriation_first
@@ -198,12 +157,12 @@ gmx_mpi mdrun -deffnm npt_first
 
 cd ../5.equilibriation_second
 
-gmx_mpi grompp -f npt_second.mdp -c ../5.equilibriation_first/npt_first.gro -r .../4.minimization/em.gro -t ../5.equilibriation_first/npt_first.cpt -p ../1.topology/topol.top -o npt.tpr -maxwarn 1
-gmx_mpi mdrun -deffnm npt
+gmx_mpi grompp -f npt_second.mdp -c ../5.equilibriation_first/npt_first.gro -r ../4.minimization/em.gro -t ../5.equilibriation_first/npt_first.cpt -p ../1.topology/topol.top -o npt.tpr -maxwarn 1
+gmx_mpi mdrun -deffnm npt -ntomp $OMP_NUM_THREADS
 
 
 ### md-sim ###
 cd ../6.md_sim
 
 gmx_mpi grompp -f md.mdp -c ../5.equilibriation_second/npt.gro  -t ../5.equilibriation_second/npt.cpt  -p ../1.topology/topol.top -o md_0_1.tpr
-gmx_mpi mdrun -deffnm md_0_1 -nb gpu >& ./md.out
+gmx_mpi mdrun -deffnm md_0_1 -ntomp $OMP_NUM_THREADS -nb gpu -pme gpu -update gpu >& ./md.out
