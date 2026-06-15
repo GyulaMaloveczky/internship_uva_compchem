@@ -76,16 +76,8 @@ cd ../
 # index creation - protein
 
 gmx_mpi make_ndx -f complex.gro -o ./index_protein.ndx <<EOF
-ri 1-160
-ri 161-200 & ! r SOL & ! r NA & ! r CL
-ri 1-200 & ! r SOL & ! r NA & ! r CL
-10 & a CA
-11 & a CA
-name 10 onlyProtein 
-name 11 onlyPeptide 
-name 12 Prot+Pept
-name 13 CAonlyProtein
-name 14 CAonlyPeptide
+"Protein_chain_A" & a CA
+"Protein_chain_B" & a CA
 q
 EOF
 
@@ -96,8 +88,9 @@ EOF
 
 # restraint creation
 
-echo 13 | gmx_mpi genrestr -f complex.gro -n  ./index_protein.ndx -o posre_chainA_strong.itp -fc 1000 # restrains CA protein - 1000 KJ/mol
-echo 13 | gmx_mpi genrestr -f complex.gro -n  ./index_protein.ndx -o posre_chainA_weak.itp -fc 100 # restrains CA protein - 100 KJ/mol
+echo "Protein_chain_A_&_CA" | gmx_mpi genrestr -f complex.gro -n ./index_protein.ndx -o posre_chainA_strong.itp -fc 1000 # restrains CA protein - 1000 KJ/mol
+echo "Protein_chain_A_&_CA" | gmx_mpi genrestr -f complex.gro -n ./index_protein.ndx -o posre_chainA_weak.itp   -fc 100 # restrains CA protein - 100 KJ/mol
+
 
 echo 3 | gmx_mpi genrestr -f ./peptide_only/only_peptide.gro  -o posre_chainB_strong.itp -fc 1000 # restrains CA peptide - 1000 KJ/mol
 echo 3 | gmx_mpi genrestr -f ./peptide_only/only_peptide.gro  -o posre_chainB_weak.itp -fc 100 # restrains CA peptide - 100 KJ/mol
